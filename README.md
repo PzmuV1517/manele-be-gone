@@ -8,7 +8,7 @@ Power supply: 5V 3A
 
 # Requirements
 
-bleak
+bleak,
 tabulate
 
-sudo pip install bleak tabulate --break-system-packages
+sudo pip install bleak tabulate --break-system-packages (MUST BE RAN AS SUDO!!!!!!!!)
