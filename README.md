@@ -1,7 +1,11 @@
-# Manele Be Gone
+# Manele-Be-Gone
 
 Fuck manele
 by Par@DoX Industries
+
+# What is Manele-Be-Gone
+
+Manele-Be-Gone is a free tool to turn off or DOS bluetooth speakers.
 
 # Connections
 
