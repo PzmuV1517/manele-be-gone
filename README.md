@@ -1,6 +1,7 @@
 # Manele Be Gone
 
 Fuck manele
+by Par@DoX Industries
 
 # Connections
 
